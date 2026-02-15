@@ -1,6 +1,36 @@
-node_modules
-dist
-.DS_Store
-server/public
-vite.config.ts.*
+# Dependencies
+node_modules/
+.venv/
+env/
+venv/
+ENV/
+
+# Build outputs
+dist/
+build/
 *.tar.gz
+vite.config.ts.*
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# OS / IDE
+.DS_Store
+.vscode/
+.idea/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.python-version
+
+# Server specific
+server/public/
+
+# Uploads
+uploads/
+!uploads/.gitkeep
