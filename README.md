@@ -1,29 +1,27 @@
 # Auto-Framer
 
-Automatically crop videos to different aspect ratios while keeping the subject (person) in frame using MediaPipe Pose.
+Automatically crop videos to different aspect ratios using MediaPipe Pose.
 
-## Setup
-1. Install dependencies:
+## Local Setup
+1. Fill `.env` with your credentials (Google OAuth & Supabase/Postgres).
+2. Install dependencies:
    ```bash
-   pip install opencv-python mediapipe numpy
+   npm install
    ```
-2. Ensure `ffmpeg` is installed on your system.
-
-## Usage
-1. Place your `.mp4` videos in `medias/input/`.
-2. Open `auto_frame.py` and set your desired ratio at the top:
-   ```python
-   SELECTED_RATIO = "9:16" # Options: "9:16", "1:1", "4:5", "16:9", "2:3"
-   ```
-3. Run the script:
+3. Run development server:
    ```bash
-   python auto_frame.py
+   npm run dev
    ```
-4. Find processed videos in `medias/output/`.
 
-## Metrics
-After each process, the script outputs metrics including:
-- Original vs Target resolution.
-- Total video length.
-- Total processing duration.
-- Processing efficiency (time taken per minute of video).
+## Docker Setup
+1. Build the image and Run the container 
+   ```bash
+   docker rm -f auto-framer || true && docker build -t auto-framer . && docker run -p 5001:5001 --name auto-framer --env-file .env auto-framer
+   ```
+
+
+## Requirements
+- Node.js & Python 3
+- FFmpeg installed on system
+- OIDC Provider (e.g., Google Cloud Console)
+- PostgreSQL database
