@@ -3,8 +3,6 @@ dist
 uploads/*
 !uploads/.gitkeep
 .git
-.replit
-replit.md
 *.pyc
 __pycache__
 client/node_modules

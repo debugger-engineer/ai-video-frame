@@ -118,9 +118,24 @@ export async function setupAuth(app: Express) {
 
   // Initialize strategy once and persist it. 
   // Re-creating it inside routes causes OIDC state verification to fail.
-  const callbackURL = process.env.AUTH_CALLBACK_URL || (process.env.NODE_ENV === "production" 
-    ? "http://localhost:5001/api/callback" // Fallback for local docker testing
-    : "http://localhost:5000/api/callback");
+  // In production, we should try to derive the callback URL if not provided.
+  let callbackURL = process.env.AUTH_CALLBACK_URL;
+  
+  if (!callbackURL) {
+    if (process.env.NODE_ENV === "production") {
+      // RAILWAY_PUBLIC_DOMAIN is a good fallback for Railway
+      const domain = process.env.RAILWAY_PUBLIC_DOMAIN || process.env.APP_URL;
+      if (domain) {
+        const protocol = domain.startsWith('http') ? '' : 'https://';
+        callbackURL = `${protocol}${domain}/api/callback`;
+      } else {
+        // Last resort fallback
+        callbackURL = "http://localhost:5001/api/callback";
+      }
+    } else {
+      callbackURL = "http://localhost:5000/api/callback";
+    }
+  }
 
   console.log(`[Auth] Using callback URL: ${callbackURL}`);
 
