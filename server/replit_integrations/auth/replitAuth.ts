@@ -11,8 +11,9 @@ import { authStorage } from "./storage";
 const getOidcConfig = memoize(
   async () => {
     return await client.discovery(
-      new URL(process.env.ISSUER_URL ?? "https://replit.com/oidc"),
-      process.env.REPL_ID!
+      new URL(process.env.AUTH_ISSUER_URL!),
+      process.env.AUTH_CLIENT_ID!,
+      process.env.AUTH_CLIENT_SECRET
     );
   },
   { maxAge: 3600 * 1000 }
@@ -23,7 +24,7 @@ export function getSession() {
   const pgStore = connectPg(session);
   const sessionStore = new pgStore({
     conString: process.env.DATABASE_URL,
-    createTableIfMissing: false,
+    createTableIfMissing: true, // Changed to true to automatically create the session table
     ttl: sessionTtl,
     tableName: "sessions",
   });
@@ -34,7 +35,7 @@ export function getSession() {
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
-      secure: true,
+      secure: false, // Changed for local testing on http://localhost
       maxAge: sessionTtl,
     },
   });
@@ -54,9 +55,9 @@ async function upsertUser(claims: any) {
   await authStorage.upsertUser({
     id: claims["sub"],
     email: claims["email"],
-    firstName: claims["first_name"],
-    lastName: claims["last_name"],
-    profileImageUrl: claims["profile_image_url"],
+    firstName: claims["given_name"] || claims["first_name"],
+    lastName: claims["family_name"] || claims["last_name"],
+    profileImageUrl: claims["picture"] || claims["profile_image_url"],
   });
 }
 
@@ -78,64 +79,52 @@ export async function setupAuth(app: Express) {
     verified(null, user);
   };
 
-  // Keep track of registered strategies
-  const registeredStrategies = new Set<string>();
-
-  // Helper function to ensure strategy exists for a domain
-  const ensureStrategy = (domain: string) => {
-    const strategyName = `replitauth:${domain}`;
-    if (!registeredStrategies.has(strategyName)) {
-      const strategy = new Strategy(
-        {
-          name: strategyName,
-          config,
-          scope: "openid email profile offline_access",
-          callbackURL: `https://${domain}/api/callback`,
-        },
-        verify
-      );
-      passport.use(strategy);
-      registeredStrategies.add(strategyName);
-    }
-  };
-
-  passport.serializeUser((user: Express.User, cb) => cb(null, user));
-  passport.deserializeUser((user: Express.User, cb) => cb(null, user));
+  passport.serializeUser((user: any, cb) => cb(null, user));
+  passport.deserializeUser((user: any, cb) => cb(null, user));
 
   app.get("/api/login", (req, res, next) => {
-    try {
-      ensureStrategy(req.hostname);
-      passport.authenticate(`replitauth:${req.hostname}`, {
-        prompt: "login consent",
-        scope: ["openid", "email", "profile", "offline_access"],
-      })(req, res, next);
-    } catch (err) {
-      console.error("Login route error:", err);
-      next(err);
-    }
+    const callbackURL = process.env.AUTH_CALLBACK_URL || `${req.protocol}://${req.get("host")}/api/callback`;
+    const strategy = new Strategy(
+      {
+        config,
+        scope: "openid email profile",
+        callbackURL,
+      },
+      verify
+    );
+    passport.use("oidc", strategy);
+    
+    passport.authenticate("oidc", {
+      prompt: "login consent",
+      scope: ["openid", "email", "profile"],
+    })(req, res, next);
   });
 
   app.get("/api/callback", (req, res, next) => {
-    try {
-      ensureStrategy(req.hostname);
-      passport.authenticate(`replitauth:${req.hostname}`, {
-        successReturnToOrRedirect: "/",
-        failureRedirect: "/api/login",
-      })(req, res, next);
-    } catch (err) {
-      console.error("Callback route error:", err);
-      next(err);
-    }
+    const callbackURL = process.env.AUTH_CALLBACK_URL || `${req.protocol}://${req.get("host")}/api/callback`;
+    const strategy = new Strategy(
+      {
+        config,
+        scope: "openid email profile",
+        callbackURL,
+      },
+      verify
+    );
+    passport.use("oidc", strategy);
+
+    passport.authenticate("oidc", {
+      successReturnToOrRedirect: "/",
+      failureRedirect: "/api/login",
+    })(req, res, next);
   });
 
   app.get("/api/logout", (req, res) => {
     req.logout(() => {
-      res.redirect(
-        client.buildEndSessionUrl(config, {
-          client_id: process.env.REPL_ID!,
-          post_logout_redirect_uri: `${req.protocol}://${req.hostname}`,
-        }).href
-      );
+      const endSessionUrl = client.buildEndSessionUrl(config, {
+        client_id: process.env.AUTH_CLIENT_ID!,
+        post_logout_redirect_uri: process.env.AUTH_LOGOUT_REDIRECT_URL || `${req.protocol}://${req.get("host")}`,
+      });
+      res.redirect(endSessionUrl.href);
     });
   });
 }
@@ -143,7 +132,7 @@ export async function setupAuth(app: Express) {
 export const isAuthenticated: RequestHandler = async (req, res, next) => {
   const user = req.user as any;
 
-  if (!req.isAuthenticated() || !user.expires_at) {
+  if (!req.isAuthenticated() || !user?.expires_at) {
     return res.status(401).json({ message: "Unauthorized" });
   }
 

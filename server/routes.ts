@@ -24,7 +24,8 @@ const upload = multer({
 });
 
 function getUserId(req: Request): string | undefined {
-  return (req.user as any)?.claims?.sub;
+  const user = req.user as any;
+  return user?.claims?.sub || user?.id;
 }
 
 export async function registerRoutes(
