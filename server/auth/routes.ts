@@ -45,9 +45,9 @@ export function registerAuthRoutes(app: Express): void {
       console.log(`[Auth] Sending magic link to ${email}: ${magicLink}`);
 
       const { data, error } = await resend.emails.send({
-        from: "App Auto Framer <onboarding@resend.dev>", // Default Resend test email
+        from: "AI Video Frame <contato@aivideoframe.com>",
         to: email,
-        subject: "Login to App Auto Framer",
+        subject: "Login to AI Video Frame",
         html: `<p>Click the link below to login to your account. This link expires in 15 minutes.</p><p><a href="${magicLink}">${magicLink}</a></p>`,
       });
 
