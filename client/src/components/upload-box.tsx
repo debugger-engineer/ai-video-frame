@@ -1,6 +1,6 @@
 import { useCallback, useState, useEffect } from "react";
 import { useDropzone } from "react-dropzone";
-import { Upload, FileVideo, X, Check, Lock, Loader2, Download } from "lucide-react";
+import { Upload, FileVideo, X, Check, Lock, Loader2, Download, Coins } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -16,9 +16,10 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { uploadVideo, apiRequest } from "@/lib/api";
+import { queryClient } from "@/lib/queryClient";
 
 export function UploadBox({ stripeVideoId }: { stripeVideoId?: string | null }) {
-  const [file, setFile] = useState<File | null>(null);
+  const [file, setFile] = useState<{ name: string; size: number } | null>(null);
   const [showPayment, setShowPayment] = useState(false);
   const [isPaymentProcessing, setIsPaymentProcessing] = useState(false);
   
@@ -34,14 +35,32 @@ export function UploadBox({ stripeVideoId }: { stripeVideoId?: string | null }) 
   useEffect(() => {
     if (stripeVideoId) {
       setVideoId(stripeVideoId);
-      setProcessingStatus("processing");
-      pollVideoStatus(stripeVideoId);
+      (async () => {
+        try {
+          const video = await apiRequest(`/api/videos/${stripeVideoId}`);
+          setFile({ name: video.originalFilename, size: video.fileSize });
+          
+          if (video.status === "completed") {
+            setProcessingStatus("completed");
+          } else if (video.status === "failed") {
+            setProcessingStatus("failed");
+          } else if (video.status === "processing") {
+            setProcessingStatus("processing");
+            pollVideoStatus(stripeVideoId);
+          } else {
+             setShowPayment(true);
+          }
+        } catch (err) {
+          console.error("Failed to load persisted video", err);
+        }
+      })();
     }
   }, [stripeVideoId]);
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     if (acceptedFiles.length > 0) {
-      setFile(acceptedFiles[0]);
+      const droppedFile = acceptedFiles[0];
+      setFile({ name: droppedFile.name, size: droppedFile.size });
       setUploadProgress(0);
       const interval = setInterval(() => {
         setUploadProgress((prev) => {
@@ -52,8 +71,18 @@ export function UploadBox({ stripeVideoId }: { stripeVideoId?: string | null }) 
           return prev + 10;
         });
       }, 100);
+
+      // Trigger actual upload
+      (async () => {
+        try {
+           const videoData = await uploadVideo(droppedFile, aspectRatio);
+           setVideoId(videoData.id);
+        } catch (error: any) {
+           toast({ title: "Upload failed", description: error.message, variant: "destructive" });
+        }
+      })();
     }
-  }, []);
+  }, [aspectRatio]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -63,8 +92,12 @@ export function UploadBox({ stripeVideoId }: { stripeVideoId?: string | null }) 
     maxFiles: 1,
   });
 
-  const handleStartProcessing = () => {
-    setShowPayment(true);
+  const handleStartProcessing = async () => {
+    if ((user?.credits ?? 0) >= 1) {
+      handlePayment();
+    } else {
+      setShowPayment(true);
+    }
   };
 
   const removeFile = (e: React.MouseEvent) => {
@@ -76,41 +109,27 @@ export function UploadBox({ stripeVideoId }: { stripeVideoId?: string | null }) 
   };
 
   const handlePayment = async () => {
-    if (!file) return;
+    if (!videoId) return;
     setIsPaymentProcessing(true);
     
     try {
-      setProcessingStatus("Uploading video...");
-      const videoData = await uploadVideo(file, aspectRatio);
-      setVideoId(videoData.id);
-
-      setProcessingStatus("Processing payment...");
-      const paymentResult = await apiRequest("/api/payments/create", {
+      setProcessingStatus("Starting video processing...");
+      await apiRequest(`/api/videos/${videoId}/process`, {
         method: "POST",
-        body: JSON.stringify({ videoId: videoData.id }),
       });
 
-      if (paymentResult.checkoutUrl) {
-        window.location.href = paymentResult.checkoutUrl;
-        return;
-      }
+      // Update user credits in UI
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
 
-      if (paymentResult.simulated || paymentResult.status === "completed") {
-        setProcessingStatus("Starting video processing...");
-        await apiRequest(`/api/videos/${videoData.id}/process`, {
-          method: "POST",
-        });
+      setShowPayment(false);
+      setProcessingProgress(0);
+      setProcessingStatus("processing");
+      toast({
+        title: "Processing started",
+        description: "Your video is being auto-framed. This may take a few minutes.",
+      });
 
-        setShowPayment(false);
-        setProcessingProgress(0);
-        setProcessingStatus("processing");
-        toast({
-          title: "Processing started",
-          description: "Your video is being auto-framed. This may take a few minutes.",
-        });
-
-        pollVideoStatus(videoData.id);
-      }
+      pollVideoStatus(videoId);
     } catch (error: any) {
       toast({
         title: "Error",
@@ -199,7 +218,17 @@ export function UploadBox({ stripeVideoId }: { stripeVideoId?: string | null }) 
   };
 
   return (
-    <div className="w-full max-w-2xl mx-auto">
+    <div className="w-full max-w-2xl mx-auto" data-video-id={videoId || ""}>
+      {isAuthenticated && (
+        <div className="flex justify-end mb-4">
+          <div className="inline-flex items-center gap-2 bg-white/80 backdrop-blur-sm border border-[hsl(38,10%,85%)] px-4 py-2 rounded-full shadow-sm">
+            <Coins className="h-4 w-4 text-[hsl(24,10%,10%)]" />
+            <span className="text-sm font-bold text-[hsl(24,10%,10%)]">
+              {user?.credits ?? 0} Credits
+            </span>
+          </div>
+        </div>
+      )}
       <AnimatePresence mode="wait">
         {processingStatus === "processing" ? (
           <motion.div
@@ -441,7 +470,7 @@ export function UploadBox({ stripeVideoId }: { stripeVideoId?: string | null }) 
                     className="bg-[hsl(24,10%,10%)] text-[hsl(38,20%,97%)] hover:bg-[hsl(24,10%,20%)] rounded-full px-10 h-14 text-lg font-medium shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300"
                     data-testid="button-start-processing"
                   >
-                    Process Video — $5
+                    Use 1 Credit to Process
                   </Button>
                 </div>
               </div>
@@ -460,14 +489,14 @@ export function UploadBox({ stripeVideoId }: { stripeVideoId?: string | null }) 
                  <p className="text-sm text-muted-foreground mt-1">AutoFrame to {aspectRatio}</p>
                </div>
                <div className="text-right">
-                 <div className="font-serif font-bold text-3xl text-[hsl(24,10%,10%)]">$5.00</div>
+                 <div className="font-serif font-bold text-3xl text-[hsl(24,10%,10%)]">1 Credit</div>
                </div>
              </div>
 
              <DialogHeader className="sr-only">
               <DialogTitle>Payment</DialogTitle>
               <DialogDescription>Complete payment to process your video</DialogDescription>
-            </DialogHeader>
+             </DialogHeader>
 
             {file && (
               <div className="bg-[hsl(38,20%,97%)] rounded-xl p-4 flex items-center gap-4 overflow-hidden">
@@ -484,7 +513,7 @@ export function UploadBox({ stripeVideoId }: { stripeVideoId?: string | null }) 
             <Button 
               className="w-full rounded-full h-14 text-lg font-medium bg-[hsl(24,10%,10%)] hover:bg-[hsl(24,10%,20%)] text-[hsl(38,20%,97%)] shadow-lg hover:shadow-xl transition-all duration-300"
               onClick={handlePayment}
-              disabled={isPaymentProcessing}
+              disabled={isPaymentProcessing || (user?.credits ?? 0) < 1}
               data-testid="button-pay"
             >
               {isPaymentProcessing ? (
@@ -492,12 +521,34 @@ export function UploadBox({ stripeVideoId }: { stripeVideoId?: string | null }) 
                   <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                   {processingStatus || "Processing..."}
                 </>
+              ) : (user?.credits ?? 0) >= 1 ? (
+                <>
+                  <Check className="mr-2 h-4 w-4" /> Use 1 Credit
+                </>
               ) : (
                 <>
-                  <Lock className="mr-2 h-4 w-4" /> Pay & Process — $5.00
+                  <Lock className="mr-2 h-4 w-4" /> Insufficient Credits
                 </>
               )}
             </Button>
+            
+            {(user?.credits ?? 0) < 1 && (
+              <div className="space-y-4">
+                <p className="text-center text-sm text-red-500 font-medium">
+                  You need at least 1 credit to process this video.
+                </p>
+                <Button 
+                  variant="outline"
+                  className="w-full rounded-full h-12 border-[hsl(24,10%,10%)] text-[hsl(24,10%,10%)] hover:bg-[hsl(24,10%,10%)] hover:text-white transition-all"
+                  onClick={() => {
+                    setShowPayment(false);
+                    document.getElementById("pricing-section")?.scrollIntoView({ behavior: "smooth" });
+                  }}
+                >
+                  Buy Credits
+                </Button>
+              </div>
+            )}
             
             <div className="flex items-center justify-center gap-2 text-xs font-medium text-muted-foreground bg-[hsl(38,20%,98%)] py-3 rounded-xl">
               <Lock className="h-3 w-3" />
