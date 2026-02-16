@@ -1,6 +1,7 @@
 import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { authStorage } from "./auth/storage";
 import { setupAuth, registerAuthRoutes, isAuthenticated } from "./auth";
 import multer from "multer";
 import path from "path";
@@ -79,33 +80,38 @@ export async function registerRoutes(
 
   // ---- STRIPE PAYMENT ROUTE ----
 
-  app.post("/api/payments/create", isAuthenticated, async (req: Request, res: Response) => {
+  app.post("/api/payments/create-credits", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const { videoId } = req.body;
-      if (!videoId) {
-        return res.status(400).json({ message: "videoId is required" });
-      }
-
+      const { plan, returnVideoId } = req.body;
       const userId = getUserId(req)!;
-      const video = await storage.getVideo(videoId);
-      if (!video || video.userId !== userId) {
-        return res.status(404).json({ message: "Video not found" });
-      }
 
-      const existingPayment = await storage.getPaymentByVideoId(videoId);
-      if (existingPayment && existingPayment.status === "completed") {
-        return res.status(400).json({ message: "Video already paid for" });
+      let amount = 0;
+      let credits = 0;
+      let name = "";
+      let mode: "payment" | "subscription" = "payment";
+
+      if (plan === "single") {
+        amount = 200; // $2.00
+        credits = 1;
+        name = "1 Credit - Pay As You Go";
+      } else if (plan === "monthly") {
+        amount = 2000; // $20.00
+        credits = 22;
+        name = "Monthly Creator - 22 Credits";
+        mode = "subscription";
+      } else if (plan === "yearly") {
+        amount = 21600; // $216.00
+        credits = 264;
+        name = "Annual Pro - 264 Credits";
+        mode = "subscription";
+      } else {
+        return res.status(400).json({ message: "Invalid plan" });
       }
 
       if (!process.env.STRIPE_SECRET_KEY) {
-        const payment = await storage.createPayment({
-          userId,
-          videoId,
-          amount: 500,
-          stripeSessionId: "dev_simulated_" + Date.now(),
-        });
-        await storage.updatePaymentStatus(payment.id, "completed");
-        return res.json({ paymentId: payment.id, status: "completed", simulated: true });
+        // Simulated for dev
+        await authStorage.updateUserCredits(userId, credits);
+        return res.json({ simulated: true, status: "completed" });
       }
 
       const Stripe = (await import("stripe")).default;
@@ -117,28 +123,20 @@ export async function registerRoutes(
           {
             price_data: {
               currency: "usd",
-              product_data: {
-                name: "AutoFrame Video Processing",
-                description: `Process "${video.originalFilename}" to ${video.aspectRatio}`,
-              },
-              unit_amount: 500,
+              product_data: { name },
+              unit_amount: amount,
+              ...(mode === "subscription" ? { recurring: { interval: plan === "yearly" ? "year" : "month" } } : {}),
             },
             quantity: 1,
           },
         ],
-        mode: "payment",
-        success_url: `${req.protocol}://${req.get("host")}/?payment=success&videoId=${videoId}`,
+        mode: mode,
+        metadata: { userId, credits: credits.toString(), plan },
+        success_url: `${req.protocol}://${req.get("host")}/?payment=success&sessionId={CHECKOUT_SESSION_ID}${returnVideoId ? `&returnVideoId=${returnVideoId}` : ''}`,
         cancel_url: `${req.protocol}://${req.get("host")}/?payment=cancelled`,
       });
 
-      const payment = await storage.createPayment({
-        userId,
-        videoId,
-        amount: 500,
-        stripeSessionId: session.id,
-      });
-
-      return res.json({ paymentId: payment.id, checkoutUrl: session.url });
+      return res.json({ checkoutUrl: session.url });
     } catch (error: any) {
       return res.status(500).json({ message: error.message });
     }
@@ -146,42 +144,36 @@ export async function registerRoutes(
 
   // ---- STRIPE PAYMENT CONFIRMATION (after redirect) ----
 
-  app.post("/api/payments/confirm", isAuthenticated, async (req: Request, res: Response) => {
+  app.post("/api/payments/confirm-credits", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const { videoId } = req.body;
-      if (!videoId) {
-        return res.status(400).json({ message: "videoId is required" });
+      const { sessionId } = req.body;
+      if (!sessionId) {
+        return res.status(400).json({ message: "sessionId is required" });
       }
 
       const userId = getUserId(req)!;
-      const video = await storage.getVideo(videoId);
-      if (!video || video.userId !== userId) {
-        return res.status(404).json({ message: "Video not found" });
+
+      if (!process.env.STRIPE_SECRET_KEY) {
+        return res.json({ status: "completed", credits: 0 });
       }
 
-      const payment = await storage.getPaymentByVideoId(videoId);
-      if (!payment) {
-        return res.status(404).json({ message: "Payment not found" });
-      }
+      const Stripe = (await import("stripe")).default;
+      const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+      const stripeSession = await stripe.checkout.sessions.retrieve(sessionId);
 
-      if (payment.status === "completed") {
-        return res.json({ status: "completed", paymentId: payment.id });
-      }
+      if (stripeSession.payment_status === "paid") {
+        const credits = parseInt(stripeSession.metadata?.credits || "0");
+        const metadataUserId = stripeSession.metadata?.userId;
 
-      if (process.env.STRIPE_SECRET_KEY && payment.stripeSessionId && !payment.stripeSessionId.startsWith("dev_")) {
-        const Stripe = (await import("stripe")).default;
-        const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-        const stripeSession = await stripe.checkout.sessions.retrieve(payment.stripeSessionId);
-
-        if (stripeSession.payment_status === "paid") {
-          await storage.updatePaymentStatus(payment.id, "completed");
-          return res.json({ status: "completed", paymentId: payment.id });
-        } else {
-          return res.json({ status: "pending", paymentId: payment.id });
+        if (metadataUserId !== userId) {
+          return res.status(403).json({ message: "Unauthorized" });
         }
-      }
 
-      return res.json({ status: payment.status, paymentId: payment.id });
+        await authStorage.updateUserCredits(userId, credits);
+        return res.json({ status: "completed", credits });
+      } else {
+        return res.json({ status: "pending" });
+      }
     } catch (error: any) {
       return res.status(500).json({ message: error.message });
     }
@@ -198,9 +190,10 @@ export async function registerRoutes(
         return res.status(404).json({ message: "Video not found" });
       }
 
-      const payment = await storage.getPaymentByVideoId(video.id);
-      if (!payment || payment.status !== "completed") {
-        return res.status(402).json({ message: "Payment required before processing" });
+      // Check if user has enough credits
+      const user = await authStorage.getUser(userId);
+      if (!user || (user.credits || 0) < 1) {
+        return res.status(402).json({ message: "Insufficient credits" });
       }
 
       if (video.status === "processing") {
@@ -212,6 +205,9 @@ export async function registerRoutes(
       }
 
       await storage.updateVideoStatus(video.id, "processing");
+      
+      // Consume 1 credit
+      await authStorage.updateUserCredits(userId, -1);
 
       const ext = path.extname(video.originalFilename) || ".mp4";
       const outputFilename = `auto_${video.aspectRatio.replace(":", "_")}_${video.id}${ext}`;

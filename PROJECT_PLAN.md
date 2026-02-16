@@ -8,3 +8,6 @@
 - [ ] define the best way to host this app
 - [ ] buy a domain. 
 - [ ] review and finilize the design of the website.
+- [ ] check if all the tables as correct in the db abd if the ids are secure.
+- [ ] is the credits system giving the credit montly? is the controle over credits and subscriptions correct?
+- [ ] does it recognize when a video has more then 5 minutes and person has only 1 credit?
