@@ -1,7 +1,7 @@
-# AutoFrame
+# AI Video Frame
 
 ## Overview
-AutoFrame is a full-stack web application that serves as a frontend for a Python video processing script. Users upload landscape videos, authenticate, pay $5 per video via Stripe, and receive AI-processed vertical videos cropped to various aspect ratios (9:16 for TikTok/Reels, 1:1 square, 4:5 portrait, etc.).
+AI Video Frame is a full-stack web application that serves as a frontend for a Python video processing script. Users upload landscape videos, authenticate, pay $5 per video via Stripe, and receive AI-processed vertical videos cropped to various aspect ratios (9:16 for TikTok/Reels, 1:1 square, 4:5 portrait, etc.).
 
 ## Current State
 - Fully functional full-stack application with auth, payments, and video processing pipeline

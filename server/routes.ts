@@ -376,7 +376,7 @@ export async function registerRoutes(
 
       pythonProcess.stdout.on("data", (data) => {
         const output = data.toString();
-        console.log(`[AutoFrame] ${output}`);
+        console.log(`[AI Video Frame] ${output}`);
         const match = output.match(/Progress:\s*([\d.]+)%/);
         if (match) {
           videoProgress.set(video.id, parseFloat(match[1]));
@@ -384,17 +384,17 @@ export async function registerRoutes(
       });
 
       pythonProcess.stderr.on("data", (data) => {
-        console.error(`[AutoFrame Error] ${data}`);
+        console.error(`[AI Video Frame Error] ${data}`);
       });
 
       pythonProcess.on("close", async (code) => {
         videoProgress.delete(video.id);
         if (code === 0) {
           await storage.updateVideoStatus(video.id, "completed", outputPath);
-          console.log(`[AutoFrame] Processing complete for video ${video.id}`);
+          console.log(`[AI Video Frame] Processing complete for video ${video.id}`);
         } else {
           await storage.updateVideoStatus(video.id, "failed");
-          console.error(`[AutoFrame] Processing failed for video ${video.id} with code ${code}`);
+          console.error(`[AI Video Frame] Processing failed for video ${video.id} with code ${code}`);
         }
         const tempFiles = fs.readdirSync(".").filter(f => f.startsWith("temp_no_audio_") && f.endsWith(".mp4"));
         for (const tmpFile of tempFiles) {
@@ -506,7 +506,7 @@ export async function registerRoutes(
       
       // Handle the file extension correctly
       const ext = path.extname(video.processedPath) || ".mp4";
-      const downloadName = `autoframe_${safeName}${safeName.endsWith(ext) ? '' : ext}`;
+      const downloadName = `aivideoframe_${safeName}${safeName.endsWith(ext) ? '' : ext}`;
 
       // Set explicit timeout for this request (1 hour)
       req.setTimeout(3600000);

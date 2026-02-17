@@ -660,7 +660,7 @@ export function UploadBox({ stripeVideoId }: { stripeVideoId?: string | null }) 
              <div className="flex items-center justify-between border-b border-dashed border-gray-200 pb-6">
                <div>
                  <h3 className="font-serif font-bold text-2xl text-[hsl(24,10%,10%)]">Order Summary</h3>
-                 <p className="text-sm text-muted-foreground mt-1">AutoFrame to {aspectRatio}</p>
+                 <p className="text-sm text-muted-foreground mt-1">AI Video Frame to {aspectRatio}</p>
                </div>
                <div className="text-right">
                  <div className="font-serif font-bold text-3xl text-[hsl(24,10%,10%)]">
