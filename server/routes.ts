@@ -410,7 +410,7 @@ export async function registerRoutes(
 
   // ---- STRIPE WEBHOOK ----
 
-  app.post("/api/webhooks/stripe", express.raw({ type: "application/json" }), async (req: Request, res: Response) => {
+  app.post("/api/webhooks/stripe", async (req: Request, res: Response) => {
     const sig = req.headers["stripe-signature"];
     const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
@@ -423,7 +423,8 @@ export async function registerRoutes(
     try {
       const Stripe = (await import("stripe")).default;
       const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
-      event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
+      // Use the rawBody captured in server/index.ts
+      event = stripe.webhooks.constructEvent((req as any).rawBody, sig, webhookSecret);
     } catch (err: any) {
       console.error(`Webhook Error: ${err.message}`);
       return res.status(400).send(`Webhook Error: ${err.message}`);
