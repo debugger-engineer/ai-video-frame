@@ -30,3 +30,4 @@
 - [ ] write a blog post about the project.
 - [ ] check and test vunerabilities with openclaw.
 - [ ] create unit and integration tests to the pipeline
+- [ ] page in different languages.
