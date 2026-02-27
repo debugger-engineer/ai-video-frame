@@ -487,8 +487,9 @@ export function UploadBox({ stripeVideoId }: { stripeVideoId?: string | null }) 
                   <h3 className="text-2xl font-serif font-bold text-[hsl(24,10%,10%)]">
                     {isLoading ? "Loading..." : "Sign in to get started"}
                   </h3>
-                  <p className="text-base text-muted-foreground max-w-sm mx-auto">
-                    Sign in to upload and process videos. Your first video is <span className="text-[hsl(24,10%,10%)] font-bold">on us!</span>
+                  <p className="text-base text-muted-foreground max-w-sm mx-auto flex flex-col gap-1">
+                    <span>Sign in to upload and process videos.</span>
+                    <span className="text-[hsl(24,10%,10%)] font-bold">Your first video is on us!</span>
                   </p>
                 </div>
                 {!isLoading && (
