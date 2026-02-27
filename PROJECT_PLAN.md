@@ -29,3 +29,4 @@
 - [ ] add aivideoframe email box to my email app.
 - [ ] add a reminder to when the domain is expiring.
 - [ ] write a blog post about the project.
+- [ ] add one free credit for every new login.
