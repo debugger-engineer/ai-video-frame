@@ -47,6 +47,10 @@ export function UploadBox({ stripeVideoId }: { stripeVideoId?: string | null }) 
       setProcessingStatus(null);
       setProcessingProgress(0);
       
+      // Clear localStorage
+      localStorage.removeItem("pendingVideoId");
+      localStorage.removeItem("pendingVideoTimestamp");
+      
       // Cleanup any abandoned uploads on logout
       apiRequest("/api/videos/reset", { method: "POST" }).catch(() => {});
     }
@@ -100,6 +104,21 @@ export function UploadBox({ stripeVideoId }: { stripeVideoId?: string | null }) 
       // Otherwise, check if there's any active video within the window
       (async () => {
         try {
+          // PROACTIVE CLEANUP: Check localStorage for stale uploaded videos
+          const storedVideoId = localStorage.getItem("pendingVideoId");
+          const storedTimestamp = localStorage.getItem("pendingVideoTimestamp");
+          
+          if (storedVideoId && storedTimestamp) {
+            const age = Date.now() - parseInt(storedTimestamp);
+            // If the stored video is older than 10 minutes, it's definitely stale
+            if (age > 10 * 60 * 1000) {
+              console.log(`[Init] Found stale video in localStorage (${storedVideoId}), cleaning up proactively`);
+              localStorage.removeItem("pendingVideoId");
+              localStorage.removeItem("pendingVideoTimestamp");
+              await apiRequest("/api/videos/reset", { method: "POST" }).catch(() => {});
+            }
+          }
+          
           // Add cache-busting timestamp to prevent browser from returning stale latest video
           const video = await apiRequest(`/api/videos/latest?t=${Date.now()}`);
           if (video) {
@@ -163,6 +182,10 @@ export function UploadBox({ stripeVideoId }: { stripeVideoId?: string | null }) 
              setVideoId(videoData.id);
              setFile(prev => prev ? { ...prev, duration: videoData.duration } : null);
              setIsValidating(false);
+             
+             // Store in localStorage to track pending uploads
+             localStorage.setItem("pendingVideoId", videoData.id);
+             localStorage.setItem("pendingVideoTimestamp", Date.now().toString());
            }, 500);
         } catch (error: any) {
            setIsUploading(false);
@@ -255,6 +278,10 @@ export function UploadBox({ stripeVideoId }: { stripeVideoId?: string | null }) 
       await apiRequest(`/api/videos/${videoId}/process`, {
         method: "POST",
       });
+
+      // Clear localStorage since video is now being processed
+      localStorage.removeItem("pendingVideoId");
+      localStorage.removeItem("pendingVideoTimestamp");
 
       // Update user credits in UI
       queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
@@ -349,6 +376,10 @@ export function UploadBox({ stripeVideoId }: { stripeVideoId?: string | null }) 
     setIsValidating(false);
     setIsUploading(false);
     setShowPayment(false);
+
+    // Clear localStorage
+    localStorage.removeItem("pendingVideoId");
+    localStorage.removeItem("pendingVideoTimestamp");
 
     try {
       // Clear react-query cache

@@ -65,6 +65,23 @@ export class DatabaseStorage implements IStorage {
       const age = now.getTime() - new Date(video.createdAt || 0).getTime();
       if (age > maxAgeMs) {
         staleVideos.push(video);
+        
+        // Clean up physical files before deleting database record
+        const fs = require("fs");
+        const { promisify } = require("util");
+        const unlinkAsync = promisify(fs.unlink);
+        
+        if (video.originalPath && fs.existsSync(video.originalPath)) {
+          await unlinkAsync(video.originalPath).catch((err: any) => 
+            console.error(`Failed to delete file ${video.originalPath}:`, err)
+          );
+        }
+        if (video.processedPath && fs.existsSync(video.processedPath)) {
+          await unlinkAsync(video.processedPath).catch((err: any) => 
+            console.error(`Failed to delete file ${video.processedPath}:`, err)
+          );
+        }
+        
         await this.deleteVideo(video.id);
       }
     }
