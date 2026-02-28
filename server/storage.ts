@@ -13,6 +13,7 @@ export interface IStorage {
   updateVideoStatus(id: string, status: string, processedPath?: string): Promise<Video | undefined>;
   getAllProcessingVideos(): Promise<Video[]>;
   deleteVideo(id: string): Promise<void>;
+  deleteAllUserVideos(userId: string): Promise<void>;
 
   getPayment(id: string): Promise<Payment | undefined>;
   getPaymentByVideoId(videoId: string): Promise<Payment | undefined>;
@@ -48,6 +49,10 @@ export class DatabaseStorage implements IStorage {
 
   async deleteVideo(id: string): Promise<void> {
     await db.delete(videos).where(eq(videos.id, id));
+  }
+
+  async deleteAllUserVideos(userId: string): Promise<void> {
+    await db.delete(videos).where(eq(videos.userId, userId));
   }
 
   async getPayment(id: string): Promise<Payment | undefined> {

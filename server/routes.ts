@@ -203,8 +203,10 @@ export async function registerRoutes(
 
       const userId = getUserId(req)!;
       
-      // Cleanup previous files for this user before starting new ones
+      // Cleanup previous files AND database records for this user before starting a new upload.
+      // This ensures we never have multiple records or "stuck" states from previous attempts.
       await cleanupUserFiles(userId);
+      await storage.deleteAllUserVideos(userId);
 
       const allowedRatios = ["9:16", "1:1", "4:5", "16:9", "2:3"];
       const aspectRatio = req.body.aspectRatio || "9:16";
@@ -257,10 +259,14 @@ export async function registerRoutes(
     // Verify file existence on disk
     if (latest.status === "uploaded" || latest.status === "processing") {
       if (!latest.originalPath || !fs.existsSync(latest.originalPath)) {
+        // If the database record exists but the file is gone, clean up the record
+        await storage.deleteVideo(latest.id);
         return res.json(null);
       }
     } else if (latest.status === "completed") {
       if (!latest.processedPath || !fs.existsSync(latest.processedPath)) {
+        // If the database record exists but the file is gone, clean up the record
+        await storage.deleteVideo(latest.id);
         return res.json(null);
       }
     }

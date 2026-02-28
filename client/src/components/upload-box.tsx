@@ -316,11 +316,26 @@ export function UploadBox({ stripeVideoId }: { stripeVideoId?: string | null }) 
     }
   };
 
-  const resetState = () => {
+  const resetState = async () => {
+    const currentVideoId = videoId;
+    
+    // Optimistic UI update
     setFile(null);
     setUploadProgress(0);
     setVideoId(null);
     setProcessingStatus(null);
+
+    // If we're resetting (e.g. "Try Again" or manual reset), 
+    // we should clean up the old video record if it exists
+    if (currentVideoId) {
+      try {
+        await apiRequest(`/api/videos/${currentVideoId}`, {
+          method: "DELETE",
+        });
+      } catch (error) {
+        console.error("Failed to delete video record during reset", error);
+      }
+    }
   };
 
   const truncateFilename = (name: string, maxLen: number = 30) => {
