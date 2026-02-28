@@ -68,17 +68,18 @@ export function UploadBox({ stripeVideoId }: { stripeVideoId?: string | null }) 
   }, [videoId, processingStatus, isAuthenticated]);
 
   useEffect(() => {
+    console.log("[Init] useEffect triggered", { stripeVideoId, isAuthenticated });
+
     // If we have a video from Stripe redirect, use it
     if (stripeVideoId) {
+      console.log("[Init] Using stripeVideoId:", stripeVideoId);
       setVideoId(stripeVideoId);
       (async () => {
         try {
           const video = await apiRequest(`/api/videos/${stripeVideoId}`);
+          console.log("[Init] Stripe video loaded:", video);
           
           // STRICT CHECK: Only restore if processing/completed/failed.
-          // If it's just 'uploaded', we treat it as abandoned unless we are actively paying (which is handled by parent context usually, but here we enforce strictness).
-          // Actually, if we just returned from Stripe, it MIGHT be 'uploaded' still if the webhook hasn't fired or if we just cancelled.
-          // BUT, if the user sees it stuck, they want it gone.
           
           if (video.status === "completed") {
             setFile({ name: video.originalFilename, size: video.fileSize, duration: video.duration });
@@ -94,10 +95,7 @@ export function UploadBox({ stripeVideoId }: { stripeVideoId?: string | null }) 
             setProcessingStatus("processing");
             pollVideoStatus(stripeVideoId);
           } else {
-             // If status is 'uploaded', we normally show the payment dialog.
-             // BUT to solve the "stuck" issue, we will only show it if the user INTENDED to pay (which is implied by stripeVideoId).
-             // However, to be safe against "stuck" states, let's verify if we should really show it.
-             // For now, I will allow it to show, but ensure the 'X' button works by clearing the URL.
+             console.log("[Init] Stripe video is in 'uploaded' state. Showing payment dialog.");
              setFile({ name: video.originalFilename, size: video.fileSize, duration: video.duration });
              setAspectRatio(video.aspectRatio || "9:16");
              setShowPayment(true);
@@ -122,16 +120,17 @@ export function UploadBox({ stripeVideoId }: { stripeVideoId?: string | null }) 
       // Otherwise, check if there's any active video within the window
       (async () => {
         try {
+          console.log("[Init] Clearing localStorage and fetching latest video...");
           // ALWAYS clear localStorage on mount.
-          // We rely solely on the backend to tell us if there is a processing/completed video.
-          // Unprocessed uploads should never persist across sessions/refreshes.
           localStorage.removeItem("pendingVideoId");
           localStorage.removeItem("pendingVideoTimestamp");
           
           // Add cache-busting timestamp to prevent browser from returning stale latest video
           const video = await apiRequest(`/api/videos/latest?t=${Date.now()}`);
+          console.log("[Init] Latest video response:", video);
           
           if (video && (video.status === "processing" || video.status === "completed" || video.status === "failed")) {
+            console.log("[Init] Restoring video state:", video.status);
             // ONLY restore processing or completed videos.
             setVideoId(video.id);
             setFile({ name: video.originalFilename, size: video.fileSize, duration: video.duration });
@@ -146,6 +145,7 @@ export function UploadBox({ stripeVideoId }: { stripeVideoId?: string | null }) 
               pollVideoStatus(video.id);
             }
           } else {
+            console.log("[Init] No active video to restore.");
             // If the backend returns an 'uploaded' video (which it shouldn't due to our backend fix),
             // or if it returns null, we ensure we clean up.
             if (video && video.status === "uploaded") {
@@ -160,6 +160,7 @@ export function UploadBox({ stripeVideoId }: { stripeVideoId?: string | null }) 
         }
       })();
     } else {
+      console.log("[Init] Not authenticated, skipping video fetch.");
       setIsInitializing(false);
     }
   }, [stripeVideoId, isAuthenticated]);
