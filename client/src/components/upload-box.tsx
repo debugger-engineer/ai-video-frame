@@ -202,12 +202,25 @@ export function UploadBox({ stripeVideoId }: { stripeVideoId?: string | null }) 
     }
   };
 
-  const removeFile = (e: React.MouseEvent) => {
+  const removeFile = async (e: React.MouseEvent) => {
     e.stopPropagation();
+    const currentVideoId = videoId;
+    
+    // Optimistic UI update
     setFile(null);
     setUploadProgress(0);
     setVideoId(null);
     setProcessingStatus(null);
+
+    if (currentVideoId) {
+      try {
+        await apiRequest(`/api/videos/${currentVideoId}`, {
+          method: "DELETE",
+        });
+      } catch (error) {
+        console.error("Failed to delete video record", error);
+      }
+    }
   };
 
   const handlePayment = async () => {
