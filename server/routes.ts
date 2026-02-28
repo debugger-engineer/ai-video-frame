@@ -240,19 +240,27 @@ export async function registerRoutes(
 
   app.get("/api/videos/latest", isAuthenticated, async (req: Request, res: Response) => {
     const userId = getUserId(req)!;
+    console.log(`[API] /api/videos/latest requested for user ${userId}`);
+    
     const vids = await storage.getVideosByUser(userId);
-    if (vids.length === 0) return res.json(null);
+    if (vids.length === 0) {
+      console.log(`[API] No videos found for user ${userId}`);
+      return res.json(null);
+    }
     
     // Sort by createdAt desc
     const latest = vids.sort((a, b) => 
       new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
     )[0];
 
+    console.log(`[API] Latest video candidate: ${latest.id}, status: ${latest.status}, age: ${(Date.now() - new Date(latest.createdAt || 0).getTime()) / 1000}s`);
+
     // Check if it's within 15 minutes and files still exist
     const now = new Date();
     const age = now.getTime() - new Date(latest.createdAt || 0).getTime();
     
     if (age > CLEANUP_THRESHOLD_MS) {
+      console.log(`[API] Latest video ${latest.id} is too old (${age}ms > ${CLEANUP_THRESHOLD_MS}ms). Ignoring.`);
       return res.json(null);
     }
 
@@ -267,6 +275,7 @@ export async function registerRoutes(
     } else if (latest.status === "completed") {
       if (!latest.processedPath || !fs.existsSync(latest.processedPath)) {
         // If the database record exists but the file is gone, clean up the record
+        console.log(`[Latest] Processed file missing for video ${latest.id}, cleaning up.`);
         await storage.deleteVideo(latest.id);
         return res.json(null);
       }
@@ -285,10 +294,12 @@ export async function registerRoutes(
         await unlinkAsync(latest.processedPath).catch(() => {});
       }
       await storage.deleteVideo(latest.id);
+      console.log(`[Latest] Deleted 'uploaded' video ${latest.id}. Returning null.`);
       return res.json(null);
     }
 
     const progress = videoProgress.get(latest.id) ?? 0;
+    console.log(`[API] Returning latest video ${latest.id} with status ${latest.status} and progress ${progress}`);
     return res.json({ ...latest, progress });
   });
 
