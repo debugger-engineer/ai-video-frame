@@ -269,7 +269,13 @@ export async function registerRoutes(
     // unless explicitly requested by ID. This prevents the "stuck at 0%" issue
     // on normal refresh or login.
     if (latest.status === "uploaded") {
-      return res.json(null);
+      // If it's just 'uploaded' and hasn't started processing, we consider it a stale entry
+      // unless it was created very recently (e.g., within 2 minutes) to allow for 
+      // network latency or Stripe redirect delays.
+      const twoMinutesAgo = new Date(now.getTime() - 2 * 60 * 1000);
+      if (new Date(latest.createdAt || 0) < twoMinutesAgo) {
+        return res.json(null);
+      }
     }
 
     const progress = videoProgress.get(latest.id) ?? 0;
@@ -285,6 +291,31 @@ export async function registerRoutes(
     }
     const progress = videoProgress.get(videoId) ?? 0;
     return res.json({ ...video, progress });
+  });
+
+  app.delete("/api/videos/:id", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const videoId = req.params.id as string;
+      const userId = getUserId(req)!;
+      const video = await storage.getVideo(videoId);
+      
+      if (!video || video.userId !== userId) {
+        return res.status(404).json({ message: "Video not found" });
+      }
+
+      // Cleanup files if they exist
+      if (video.originalPath && fs.existsSync(video.originalPath)) {
+        await unlinkAsync(video.originalPath).catch(() => {});
+      }
+      if (video.processedPath && fs.existsSync(video.processedPath)) {
+        await unlinkAsync(video.processedPath).catch(() => {});
+      }
+
+      await storage.deleteVideo(videoId);
+      return res.json({ success: true });
+    } catch (error: any) {
+      return res.status(500).json({ message: error.message });
+    }
   });
 
   // ---- STRIPE PAYMENT ROUTE ----
