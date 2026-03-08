@@ -17,6 +17,8 @@
 - [x] test other llm models to process the video.
 - [x] add one free credit for every new login.
 - [x] get a better logo... more clean and simple.
+- [x] delete historic of .env file from git history
+
 
 ## TODO
 - [ ] test the time and the cost to process in a AWS instance with gpu.
@@ -24,7 +26,6 @@
 - [ ] create a api and sell it on rapidapi.
 - [ ] picture in the email profile. 
 - [ ] consider to change the google authentication app from my personal accout to the ai video frame gmail account.
-- [ ] delete historic of .env file from git history
 - [ ] create a log system for the server.
 - [ ] add a reminder to when the domain is expiring.
 - [ ] write a blog post about the project.
