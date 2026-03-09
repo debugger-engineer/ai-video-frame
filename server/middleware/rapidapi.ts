@@ -17,8 +17,10 @@ export async function rapidApiAuth(req: Request, res: Response, next: NextFuncti
     return res.status(400).json({ error: "Missing X-RapidAPI-User header" });
   }
 
+  const subscription = req.headers["x-rapidapi-subscription"] as string | undefined;
+
   try {
-    const user = await authStorage.findOrCreateRapidApiUser(rapidApiUserId);
+    const user = await authStorage.findOrCreateRapidApiUser(rapidApiUserId, subscription);
     (req as RapidApiRequest).rapidApiUser = user;
     next();
   } catch (err) {

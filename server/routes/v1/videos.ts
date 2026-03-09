@@ -5,6 +5,7 @@ import { promisify } from "util";
 import { spawn } from "child_process";
 import { rapidApiAuth, type RapidApiRequest } from "../../middleware/rapidapi";
 import { storage } from "../../storage";
+import { authStorage } from "../../auth/storage";
 import {
   upload,
   getVideoDuration,
@@ -60,7 +61,13 @@ router.post("/upload", upload.single("video"), async (req, res) => {
 router.post("/:id/process", async (req, res) => {
   try {
     const videoId = req.params.id;
-    const userId = (req as unknown as RapidApiRequest).rapidApiUser.id;
+    const rapidApiUser = (req as unknown as RapidApiRequest).rapidApiUser;
+    const userId = rapidApiUser.id;
+
+    if (rapidApiUser.credits <= 0) {
+      return res.status(402).json({ error: "Insufficient credits. Please upgrade your plan on RapidAPI." });
+    }
+
     const video = await storage.getVideo(videoId);
 
     if (!video || video.userId !== userId) {
@@ -74,6 +81,7 @@ router.post("/:id/process", async (req, res) => {
     }
 
     await storage.updateVideoStatus(video.id, "processing");
+    await authStorage.updateUserCredits(userId, -1);
 
     const ext = path.extname(video.originalFilename) || ".mp4";
     const outputFilename = `auto_${video.aspectRatio.replace(":", "_")}_${video.id}${ext}`;
