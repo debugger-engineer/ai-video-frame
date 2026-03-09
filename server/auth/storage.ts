@@ -3,7 +3,7 @@ import { db } from "../db";
 import { eq, and, gt, sql } from "drizzle-orm";
 
 const RAPIDAPI_PLAN_CREDITS: Record<string, number> = {
-  BASIC: 5,
+  BASIC: 1,
   PRO: 50,
   ULTRA: 200,
 };
