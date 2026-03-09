@@ -36,3 +36,4 @@
 - [ ] confirm the repo is ready to go public
 - [ ] scrumble the project_plan.md from git history
 - [ ] look for securiy flaws
+- [ ] use the abel ferreira video example to create the blog and linkedin post advertiaing the microservices.

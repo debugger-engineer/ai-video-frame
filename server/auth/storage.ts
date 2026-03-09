@@ -12,6 +12,7 @@ export interface IAuthStorage {
   createVerificationToken(token: InsertVerificationToken): Promise<VerificationToken>;
   getVerificationToken(token: string): Promise<VerificationToken | undefined>;
   deleteVerificationToken(token: string): Promise<void>;
+  findOrCreateRapidApiUser(rapidApiUserId: string): Promise<User>;
 }
 
 class AuthStorage implements IAuthStorage {
@@ -89,6 +90,16 @@ class AuthStorage implements IAuthStorage {
 
   async deleteVerificationToken(token: string): Promise<void> {
     await db.delete(verificationTokens).where(eq(verificationTokens.token, token));
+  }
+
+  async findOrCreateRapidApiUser(rapidApiUserId: string): Promise<User> {
+    const [existing] = await db.select().from(users).where(eq(users.rapidApiUserId, rapidApiUserId));
+    if (existing) return existing;
+    const [created] = await db
+      .insert(users)
+      .values({ rapidApiUserId })
+      .returning();
+    return created;
   }
 }
 
