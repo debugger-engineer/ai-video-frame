@@ -3,22 +3,27 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { authStorage } from "./auth/storage";
 import { setupAuth, registerAuthRoutes, isAuthenticated, getUserId } from "./auth";
-import multer from "multer";
 import path from "path";
-import { spawn, execFile } from "child_process";
+import { spawn } from "child_process";
 import fs from "fs";
 import { promisify } from "util";
-import express from "express";
 import { rateLimit } from "express-rate-limit";
+import {
+  upload,
+  videoProgress,
+  getVideoDuration,
+  calculateRequiredCredits,
+  deleteVideoFiles,
+  unlinkAsync,
+  ALLOWED_RATIOS,
+} from "./video-processing";
+import v1VideosRouter from "./routes/v1/videos";
+import { setupSwaggerDocs } from "./swagger";
 
-const execFileAsync = promisify(execFile);
-const unlinkAsync = promisify(fs.unlink);
 const readdirAsync = promisify(fs.readdir);
 const statAsync = promisify(fs.stat);
 
 const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
-const MAX_FILE_SIZE = 2 * 1024 * 1024 * 1024; // 2 GB
-const ALLOWED_RATIOS = ["9:16", "1:1", "4:5", "16:9", "2:3"];
 
 // Rate limiters
 const uploadLimiter = rateLimit({
@@ -37,24 +42,7 @@ const processingLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-const apiLimiter = rateLimit({
-  windowMs: RATE_LIMIT_WINDOW_MS,
-  max: 100,
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-const videoProgress: Map<string, number> = new Map();
-
 const CLEANUP_THRESHOLD_MS = 60 * 60 * 1000; // 60 minutes
-
-async function deleteVideoFiles(video: { originalPath?: string | null; processedPath?: string | null }) {
-  if (video.originalPath && fs.existsSync(video.originalPath)) {
-    await unlinkAsync(video.originalPath).catch(() => {});
-  }
-  if (video.processedPath && fs.existsSync(video.processedPath)) {
-    await unlinkAsync(video.processedPath).catch(() => {});
-  }
-}
 
 async function getStripe() {
   const Stripe = (await import("stripe")).default;
@@ -111,67 +99,16 @@ export async function cleanupExpiredVideos() {
   }
 }
 
-async function getVideoDuration(filePath: string): Promise<number | null> {
-  try {
-    const { stdout } = await execFileAsync("ffprobe", [
-      "-v", "quiet",
-      "-select_streams", "v:0",
-      "-show_entries", "stream=duration",
-      "-of", "default=noprint_wrappers=1:nokey=1",
-      filePath
-    ]);
-    let duration = parseFloat(stdout.trim());
-    
-    if (isNaN(duration)) {
-      const { stdout: stdoutFormat } = await execFileAsync("ffprobe", [
-        "-v", "quiet",
-        "-analyzeduration", "1000000",
-        "-probesize", "1000000",
-        "-show_entries", "format=duration",
-        "-of", "default=noprint_wrappers=1:nokey=1",
-        filePath
-      ]);
-      duration = parseFloat(stdoutFormat.trim());
-    }
-
-    console.log(`[FFprobe] Duration for ${filePath}: ${duration}s`);
-    return isNaN(duration) ? null : Math.round(duration);
-  } catch (error) {
-    console.error("Error getting video duration:", error);
-    return null;
-  }
-}
-
-function calculateRequiredCredits(durationInSeconds: number | null): number {
-  if (durationInSeconds === null) return 1;
-  if (durationInSeconds <= 300) return 1;
-  const additionalSeconds = durationInSeconds - 300;
-  const additionalCredits = Math.ceil(additionalSeconds / 60);
-  return 1 + additionalCredits;
-}
-
-const upload = multer({
-  dest: "uploads/input/",
-  limits: { fileSize: MAX_FILE_SIZE },
-  fileFilter: (_req, file, cb) => {
-    const allowedExts = [".mp4", ".mov", ".avi"];
-    const allowedMimeTypes = ["video/mp4", "video/quicktime", "video/x-msvideo", "video/avi"];
-    const ext = path.extname(file.originalname).toLowerCase();
-    const mimeType = file.mimetype;
-    if (allowedExts.includes(ext) && allowedMimeTypes.includes(mimeType)) {
-      cb(null, true);
-    } else {
-      cb(new Error("Only MP4, MOV, and AVI files are allowed"));
-    }
-  },
-});
-
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
   await setupAuth(app);
   registerAuthRoutes(app);
+
+  // Public API v1 (RapidAPI)
+  app.use("/api/v1/videos", v1VideosRouter);
+  setupSwaggerDocs(app);
 
   app.post("/api/videos/upload", isAuthenticated, uploadLimiter, upload.single("video"), async (req: Request, res: Response) => {
     try {
