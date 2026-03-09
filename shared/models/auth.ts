@@ -23,6 +23,7 @@ export const users = pgTable("users", {
   stripeCustomerId: varchar("stripe_customer_id"),
   stripeSubscriptionId: varchar("stripe_subscription_id"),
   rapidApiUserId: varchar("rapid_api_user_id").unique(),
+  rapidApiSubscription: varchar("rapid_api_subscription"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

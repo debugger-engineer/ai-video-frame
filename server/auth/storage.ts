@@ -2,6 +2,12 @@ import { users, verificationTokens, type User, type UpsertUser, type Verificatio
 import { db } from "../db";
 import { eq, and, gt, sql } from "drizzle-orm";
 
+const RAPIDAPI_PLAN_CREDITS: Record<string, number> = {
+  BASIC: 5,
+  PRO: 50,
+  ULTRA: 200,
+};
+
 // Interface for auth storage operations
 export interface IAuthStorage {
   getUser(id: string): Promise<User | undefined>;
@@ -12,7 +18,7 @@ export interface IAuthStorage {
   createVerificationToken(token: InsertVerificationToken): Promise<VerificationToken>;
   getVerificationToken(token: string): Promise<VerificationToken | undefined>;
   deleteVerificationToken(token: string): Promise<void>;
-  findOrCreateRapidApiUser(rapidApiUserId: string): Promise<User>;
+  findOrCreateRapidApiUser(rapidApiUserId: string, subscription?: string): Promise<User>;
 }
 
 class AuthStorage implements IAuthStorage {
@@ -92,12 +98,26 @@ class AuthStorage implements IAuthStorage {
     await db.delete(verificationTokens).where(eq(verificationTokens.token, token));
   }
 
-  async findOrCreateRapidApiUser(rapidApiUserId: string): Promise<User> {
+  async findOrCreateRapidApiUser(rapidApiUserId: string, subscription?: string): Promise<User> {
+    const plan = subscription?.toUpperCase() ?? null;
+    const credits = RAPIDAPI_PLAN_CREDITS[plan ?? ""] ?? 1;
+
     const [existing] = await db.select().from(users).where(eq(users.rapidApiUserId, rapidApiUserId));
-    if (existing) return existing;
+    if (existing) {
+      if (existing.rapidApiSubscription !== plan) {
+        const [updated] = await db
+          .update(users)
+          .set({ rapidApiSubscription: plan, credits, updatedAt: new Date() })
+          .where(eq(users.rapidApiUserId, rapidApiUserId))
+          .returning();
+        return updated;
+      }
+      return existing;
+    }
+
     const [created] = await db
       .insert(users)
-      .values({ rapidApiUserId })
+      .values({ rapidApiUserId, rapidApiSubscription: plan, credits })
       .returning();
     return created;
   }
