@@ -39,3 +39,4 @@
 - [ ] add a mention about the rapidapi in the webpage.
 - [ ] add a paypal account for rapidapi
 - [ ] there is a bug on gmail that require click twice to authenticate.
+- [ ] reduce the prices for the launch day.
