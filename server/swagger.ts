@@ -1,4 +1,5 @@
 import type { Express } from "express";
+import swaggerUi from "swagger-ui-express";
 
 const openApiSpec = {
   openapi: "3.0.3",
@@ -202,30 +203,10 @@ const openApiSpec = {
   security: [{ RapidApiKey: [] }],
 };
 
-const swaggerUiHtml = `<!DOCTYPE html>
-<html>
-<head>
-  <title>AI Video Frame API Docs</title>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" type="text/css" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css">
-</head>
-<body>
-  <div id="swagger-ui"></div>
-  <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
-  <script>
-    SwaggerUIBundle({ url: "/api/v1/openapi.json", dom_id: "#swagger-ui", presets: [SwaggerUIBundle.presets.apis, SwaggerUIBundle.SwaggerUIStandalonePreset] });
-  </script>
-</body>
-</html>`;
-
 export function setupSwaggerDocs(app: Express) {
   app.get("/api/v1/openapi.json", (_req, res) => {
     res.json(openApiSpec);
   });
 
-  app.get("/api/v1/docs", (_req, res) => {
-    res.setHeader("Content-Type", "text/html");
-    res.send(swaggerUiHtml);
-  });
+  app.use("/api/v1/docs", swaggerUi.serve, swaggerUi.setup(openApiSpec));
 }
