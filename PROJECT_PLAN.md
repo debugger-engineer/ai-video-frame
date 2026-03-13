@@ -18,24 +18,24 @@
 - [x] add one free credit for every new login.
 - [x] get a better logo... more clean and simple.
 - [x] delete historic of .env file from git history
+- [x] create a api and sell it on rapidapi.
+- [x] test rapid api
 
 
 ## TODO
-- [ ] test the time and the cost to process in a AWS instance with gpu.
 - [ ] clean up the code.
-- [ ] create a api and sell it on rapidapi.
 - [ ] picture in the email profile. 
 - [ ] consider to change the google authentication app from my personal accout to the ai video frame gmail account.
 - [ ] create a log system for the server.
 - [ ] add a reminder to when the domain is expiring.
 - [ ] write a blog post about the project.
 - [ ] check and test vunerabilities with openclaw.
-- [ ] create unit and integration tests to the pipeline
 - [ ] page in different languages.
-- [ ] clean up python code,, look for repetition.
 - [ ] confirm the repo is ready to go public
 - [ ] scrumble the project_plan.md from git history
 - [ ] look for securiy flaws
 - [ ] use the abel ferreira video example to create the blog and linkedin post advertiaing the microservices.
-- [ ] test rapid api
 - [ ] magic link email is going to the spam folder.
+- [ ] add a mention about the rapidapi in the webpage.
+- [ ] add a paypal account for rapidapi
+- [ ] there is a bug on gmail that require click twice to authenticate.
