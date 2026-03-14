@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useTranslation } from "react-i18next";
+import posthog from "posthog-js";
 
 export default function Home() {
   const { isAuthenticated, user } = useAuth();
@@ -54,6 +55,7 @@ export default function Home() {
           });
 
           if (result.status === "completed") {
+            posthog.capture("credits_purchased", { credits: result.credits });
             toast({
               title: t("home.toasts.creditsAdded"),
               description: t("home.toasts.creditsAddedDesc", { credits: result.credits })
