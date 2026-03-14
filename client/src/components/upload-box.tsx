@@ -1,5 +1,6 @@
 import { useCallback, useState, useEffect } from "react";
 import { useDropzone } from "react-dropzone";
+import posthog from "posthog-js";
 import { Upload, FileVideo, X, Check, Lock, Loader2, Download, Coins, Settings } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -74,6 +75,7 @@ export function UploadBox({ stripeVideoId }: { stripeVideoId?: string | null }) 
           clearInterval(poll);
           setProcessingProgress(100);
           setProcessingStatus("completed");
+          posthog.capture("video_processing_completed");
           toast({
             title: t("uploadBox.toasts.videoReady"),
             description: t("uploadBox.toasts.videoReadyDesc"),
@@ -81,6 +83,7 @@ export function UploadBox({ stripeVideoId }: { stripeVideoId?: string | null }) 
         } else if (video.status === "failed") {
           clearInterval(poll);
           setProcessingStatus("failed");
+          posthog.capture("video_processing_failed");
           toast({
             title: t("uploadBox.toasts.processingFailed"),
             description: t("uploadBox.toasts.processingFailedDesc"),
@@ -188,6 +191,11 @@ export function UploadBox({ stripeVideoId }: { stripeVideoId?: string | null }) 
            setUploadProgress(100);
            setIsUploading(false);
            setIsValidating(true);
+
+           posthog.capture("video_uploaded", {
+             file_size_mb: parseFloat((droppedFile.size / (1024 * 1024)).toFixed(2)),
+             file_type: droppedFile.type,
+           });
 
            // Small delay to show 100%
            setTimeout(() => {
@@ -298,6 +306,12 @@ export function UploadBox({ stripeVideoId }: { stripeVideoId?: string | null }) 
         description: t("uploadBox.toasts.processingStartedDesc"),
       });
 
+      posthog.capture("video_processing_started", {
+        aspect_ratio: aspectRatio,
+        credits_used: requiredCredits,
+        video_duration_s: file?.duration,
+      });
+
       pollVideoStatus(videoId);
     } catch (error: any) {
       toast({
@@ -313,6 +327,7 @@ export function UploadBox({ stripeVideoId }: { stripeVideoId?: string | null }) 
 
   const handleDownload = () => {
     if (!videoId) return;
+    posthog.capture("frames_downloaded");
     // Use direct window location for download to handle large files better than fetch/blob
     // The server already sets the correct Content-Disposition header
     window.location.href = `/api/videos/${videoId}/download`;
