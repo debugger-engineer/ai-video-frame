@@ -14,6 +14,7 @@ AI Video Frame simplifies the process of reframing content for social media. By 
 - **Seamless Auth**: Google OIDC integration for secure user accounts.
 - **Monetization Ready**: Integrated with Stripe for credit-based processing.
 - **Processing Queue**: Robust backend handling for video transcoding and AI analysis.
+- **Analytics**: PostHog integration tracking key user events (uploads, processing, downloads, purchases).
 
 ## Tech Stack
 
