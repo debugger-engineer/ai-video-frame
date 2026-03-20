@@ -26,7 +26,7 @@ app.use(helmet({
       payment: [],
     },
   },
-}));
+} as any));
 const httpServer = createServer(app);
 
 declare module "http" {
@@ -45,7 +45,8 @@ app.use(
 
 app.use(express.urlencoded({ extended: false }));
 
-export { log } from "./utils/logger";
+import { log } from "./utils/logger";
+export { log };
 
 app.use((req, res, next) => {
   const start = Date.now();
