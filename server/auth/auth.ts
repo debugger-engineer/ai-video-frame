@@ -7,7 +7,7 @@ import type { Express, RequestHandler } from "express";
 import memoize from "memoizee";
 import connectPg from "connect-pg-simple";
 import { authStorage } from "./storage";
-import { log } from "../index";
+import { log } from "../utils/logger";
 
 const OIDC_CACHE_MAX_AGE = 60 * 60 * 1000; // 1 hour
 const OIDC_SCOPE = "openid email profile";

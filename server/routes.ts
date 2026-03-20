@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { authStorage } from "./auth/storage";
 import { setupAuth, registerAuthRoutes, isAuthenticated, getUserId } from "./auth";
-import { log } from "./index";
+import { log } from "./utils/logger";
 import path from "path";
 import { spawn } from "child_process";
 import fs from "fs";
@@ -20,16 +20,12 @@ import {
 } from "./video-processing";
 import v1VideosRouter from "./routes/v1/videos";
 import { setupSwaggerDocs } from "./swagger";
+import { sanitizeVideo } from "./utils/sanitize";
 
 const readdirAsync = promisify(fs.readdir);
 const statAsync = promisify(fs.stat);
 
 const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
-
-function sanitizeVideo<T extends { originalPath?: unknown; processedPath?: unknown }>(v: T) {
-  const { originalPath, processedPath, ...safe } = v;
-  return safe;
-}
 
 // Rate limiters
 const uploadLimiter = rateLimit({

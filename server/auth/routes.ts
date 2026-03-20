@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { authStorage } from "./storage";
 import { isAuthenticated, getUserId } from "./auth";
 import { cleanupUserFiles } from "../routes";
-import { log } from "../index";
+import { log } from "../utils/logger";
 import { Resend } from "resend";
 import jwt from "jsonwebtoken";
 import { randomBytes, timingSafeEqual } from "crypto";
