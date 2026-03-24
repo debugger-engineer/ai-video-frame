@@ -150,7 +150,7 @@ export async function registerRoutes(
 
       return res.json(video);
     } catch (error: any) {
-      return res.status(500).json({ message: error.message });
+      return res.status(500).json({ message: "Internal server error" });
     }
   });
 
@@ -222,7 +222,7 @@ export async function registerRoutes(
       await storage.deleteVideo(videoId);
       return res.json({ success: true });
     } catch (error: any) {
-      return res.status(500).json({ message: error.message });
+      return res.status(500).json({ message: "Internal server error" });
     }
   });
 
@@ -239,7 +239,7 @@ export async function registerRoutes(
       await storage.deleteAllUserVideos(userId);
       return res.json({ success: true });
     } catch (error: any) {
-      return res.status(500).json({ message: error.message });
+      return res.status(500).json({ message: "Internal server error" });
     }
   });
 
@@ -288,7 +288,7 @@ export async function registerRoutes(
       });
       return res.json({ checkoutUrl: session.url });
     } catch (error: any) {
-      return res.status(500).json({ message: error.message });
+      return res.status(500).json({ message: "Internal server error" });
     }
   });
 
@@ -315,7 +315,7 @@ export async function registerRoutes(
         return res.json({ status: "pending" });
       }
     } catch (error: any) {
-      return res.status(500).json({ message: error.message });
+      return res.status(500).json({ message: "Internal server error" });
     }
   });
 
@@ -407,7 +407,7 @@ export async function registerRoutes(
 
       return res.json({ message: "Processing started", videoId: video.id });
     } catch (error: any) {
-      return res.status(500).json({ message: error.message });
+      return res.status(500).json({ message: "Internal server error" });
     }
   });
 
@@ -420,7 +420,7 @@ export async function registerRoutes(
       const stripe = await getStripe();
       event = stripe.webhooks.constructEvent((req as any).rawBody, sig, webhookSecret);
     } catch (err: any) {
-      return res.status(400).send(`Webhook Error: ${err.message}`);
+      return res.status(400).send("Webhook Error: Invalid payload or signature");
     }
 
     if (event.type === "checkout.session.completed") {
@@ -450,7 +450,7 @@ export async function registerRoutes(
       });
       return res.json({ url: session.url });
     } catch (error: any) {
-      return res.status(500).json({ message: error.message });
+      return res.status(500).json({ message: "Internal server error" });
     }
   });
 
@@ -480,7 +480,7 @@ export async function registerRoutes(
       });
       fs.createReadStream(absolutePath).pipe(res);
     } catch (error: any) {
-      if (!res.headersSent) res.status(500).json({ message: error.message });
+      if (!res.headersSent) res.status(500).json({ message: "Internal server error" });
     }
   });
 
@@ -510,7 +510,7 @@ export async function registerRoutes(
       });
       fs.createReadStream(absolutePath).pipe(res);
     } catch (error: any) {
-      if (!res.headersSent) res.status(500).json({ message: error.message });
+      if (!res.headersSent) res.status(500).json({ message: "Internal server error" });
     }
   });
 

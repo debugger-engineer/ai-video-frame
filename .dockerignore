@@ -7,3 +7,4 @@ uploads/*
 __pycache__
 client/node_modules
 .env
+tests/

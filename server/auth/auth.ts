@@ -182,7 +182,7 @@ export async function setupAuth(app: Express) {
   });
 
   app.get("/api/callback", (req, res, next) => {
-    log(`Callback triggered. Query: ${JSON.stringify(req.query)}`, "Auth");
+    log(`Callback triggered. Query keys: ${Object.keys(req.query).join(", ")}`, "Auth");
 
     passport.authenticate("oidc", (err: any, user: any, info: any) => {
       if (err) {
