@@ -189,7 +189,7 @@ export async function setupAuth(app: Express) {
         console.error("[Auth] Passport authenticate error:", err.message);
         console.error("[Auth] Error cause:", err.cause);
         const errorCode = (err.cause as any)?.error || err.code || "auth_error";
-        const errorDesc = (err.cause as any)?.error_description || err.message;
+        const errorDesc = (err.cause as any)?.error_description || "Authentication failed";
         return res.redirect(
           `/?login_error=${encodeURIComponent(errorCode)}&login_error_desc=${encodeURIComponent(errorDesc)}`
         );

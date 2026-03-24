@@ -60,7 +60,8 @@ router.post("/upload", upload.single("video"), async (req, res) => {
       createdAt: video.createdAt,
     });
   } catch (err: any) {
-    return res.status(500).json({ error: err.message });
+    console.error("[videos] upload error:", err);
+    return res.status(500).json({ error: "Internal server error" });
   }
 });
 
@@ -167,7 +168,8 @@ router.post("/:id/process", async (req, res) => {
 
     return res.json({ message: "Processing started", videoId: video.id });
   } catch (err: any) {
-    return res.status(500).json({ error: err.message });
+    console.error("[videos] process error:", err);
+    return res.status(500).json({ error: "Internal server error" });
   }
 });
 
@@ -199,7 +201,8 @@ router.get("/:id/status", async (req, res) => {
       createdAt: video.createdAt,
     });
   } catch (err: any) {
-    return res.status(500).json({ error: err.message });
+    console.error("[videos] status error:", err);
+    return res.status(500).json({ error: "Internal server error" });
   }
 });
 
@@ -243,7 +246,8 @@ router.get("/:id/download", async (req, res) => {
     });
     fs.createReadStream(absolutePath).pipe(res);
   } catch (err: any) {
-    if (!res.headersSent) res.status(500).json({ error: err.message });
+    console.error("[videos] download error:", err);
+    if (!res.headersSent) res.status(500).json({ error: "Internal server error" });
   }
 });
 
@@ -265,7 +269,8 @@ router.delete("/:id", async (req, res) => {
     await storage.deleteVideo(videoId);
     return res.json({ success: true });
   } catch (err: any) {
-    return res.status(500).json({ error: err.message });
+    console.error("[videos] delete error:", err);
+    return res.status(500).json({ error: "Internal server error" });
   }
 });
 
