@@ -10,6 +10,7 @@ RUN apt-get update && apt-get install -y \
     libsm6 \
     libxext6 \
     libgl1-mesa-glx \
+    libgles2-mesa \
     libglib2.0-0 \
     libasound2 \
     && rm -rf /var/lib/apt/lists/*
