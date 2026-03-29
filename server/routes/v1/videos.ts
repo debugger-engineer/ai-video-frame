@@ -12,6 +12,7 @@ import {
   videoProgress,
   deleteVideoFiles,
   calculateRequiredCredits,
+  downscaleIfNeeded,
   ALLOWED_RATIOS,
 } from "../../video-processing";
 
@@ -39,6 +40,8 @@ router.post("/upload", upload.single("video"), async (req, res) => {
     }
 
     const userId = (req as unknown as RapidApiRequest).rapidApiUser.id;
+    await downscaleIfNeeded(file.path);
+    const stat = fs.statSync(file.path);
     const duration = await getVideoDuration(file.path);
 
     const video = await storage.createVideo({
@@ -46,7 +49,7 @@ router.post("/upload", upload.single("video"), async (req, res) => {
       originalFilename: file.originalname.replace(/[^a-zA-Z0-9._-]/g, "_"),
       originalPath: file.path,
       aspectRatio,
-      fileSize: file.size,
+      fileSize: stat.size,
       duration,
     });
 

@@ -17,6 +17,7 @@ import {
   calculateRequiredCredits,
   deleteVideoFiles,
   unlinkAsync,
+  downscaleIfNeeded,
   ALLOWED_RATIOS,
 } from "./video-processing";
 import v1VideosRouter from "./routes/v1/videos";
@@ -137,14 +138,16 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Invalid aspect ratio" });
       }
 
+      await downscaleIfNeeded(file.path);
+      const stat = fs.statSync(file.path);
       const duration = await getVideoDuration(file.path);
-      
+
       const video = await storage.createVideo({
         userId,
         originalFilename: file.originalname.replace(/[^a-zA-Z0-9._-]/g, "_"),
         originalPath: file.path,
         aspectRatio,
-        fileSize: file.size,
+        fileSize: stat.size,
         duration,
       });
 
